@@ -443,6 +443,13 @@ textarea.form-control { resize: vertical; min-height: 90px; }
   background: linear-gradient(160deg, #004D40, #018786 60%, #4DB6AC);
   display: flex; align-items: center; justify-content: center; padding: 20px;
 }
+#auth-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
 .login-card {
   background: white; border-radius: 20px; padding: 36px 28px;
   width: 100%; max-width: 380px; text-align: center;
@@ -611,7 +618,19 @@ textarea.form-control { resize: vertical; min-height: 90px; }
 
 <!-- ══ LOGIN ══ -->
 <div id="login-screen">
-  <div class="login-card">
+
+  <!-- Loading splash — shown while Firebase checks auth state -->
+  <div id="auth-loading">
+    <div class="login-logo" style="margin-bottom:20px;">اخ</div>
+    <div style="font-family:var(--urdu);font-size:18px;color:white;font-weight:600;margin-bottom:16px;">اردو خبریں ایڈمن</div>
+    <div style="display:flex;align-items:center;gap:10px;color:rgba(255,255,255,0.8);font-family:var(--urdu);font-size:14px;">
+      <div style="width:20px;height:20px;border:2px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;"></div>
+      لاگ ان کی تصدیق ہو رہی ہے...
+    </div>
+  </div>
+
+  <!-- Login card — hidden until Firebase confirms user is NOT logged in -->
+  <div class="login-card" id="login-card" style="display:none;">
     <div class="login-logo">اخ</div>
     <div class="login-title">اردو خبریں ایڈمن</div>
     <div class="login-sub">ایڈمن پینل تک رسائی کے لیے<br>اپنے گوگل اکاؤنٹ سے لاگ ان کریں</div>
@@ -1055,6 +1074,8 @@ auth.onAuthStateChanged(user => {
     const all   = [...BUNIYADI_EMAILS, ...izafi];
     if (!all.includes(user.email)) {
       auth.signOut();
+      document.getElementById('auth-loading').style.display = 'none';
+      document.getElementById('login-card').style.display   = '';
       const el = document.getElementById('login-error');
       el.textContent = 'آپ کو ایڈمن ایکسیس نہیں ہے';
       el.style.display = 'block';
@@ -1067,12 +1088,17 @@ auth.onAuthStateChanged(user => {
 });
 
 function showLogin() {
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('topbar').style.display       = 'none';
-  document.getElementById('app-shell').style.display    = 'none';
+  // Hide loading spinner, show login card
+  document.getElementById('auth-loading').style.display  = 'none';
+  document.getElementById('login-card').style.display    = '';
+  document.getElementById('login-screen').style.display  = 'flex';
+  document.getElementById('topbar').style.display        = 'none';
+  document.getElementById('app-shell').style.display     = 'none';
+  document.getElementById('bottom-nav').style.display    = 'none';
 }
 
 function showApp() {
+  // Hide entire login screen (loading + card)
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('topbar').style.display       = 'flex';
   document.getElementById('app-shell').style.display    = 'flex';
