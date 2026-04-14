@@ -1240,12 +1240,17 @@ function submitNews() {
   }
 }
 function toggleNews(id, val) {
-  db.collection('custom_news').doc(id).update({ isActive: val })
-    .then(() => showToast(val ? '✅ فعال کر دیا' : '⛔ غیر فعال کر دیا'))
+  // Force boolean — checkbox.checked is already boolean but be explicit
+  const boolVal = val === true || val === 'true';
+  console.log('toggleNews:', id, '->', boolVal);
+  db.collection('custom_news').doc(id).update({ isActive: boolVal })
+    .then(() => {
+      console.log('toggleNews success:', id, boolVal);
+      showToast(boolVal ? '✅ خبر فعال کر دی' : '⛔ خبر غیر فعال کر دی');
+    })
     .catch(e => {
       console.error('toggleNews error:', e);
       showToast('خطا: ' + e.message);
-      // Re-render to revert the checkbox visually
       renderNews();
     });
 }
@@ -1298,12 +1303,16 @@ function submitAd() {
   }
 }
 function toggleAd(id, val) {
-  db.collection('advertisements').doc(id).update({ isActive: val })
-    .then(() => showToast(val ? '✅ فعال کر دیا' : '⛔ غیر فعال کر دیا'))
+  const boolVal = val === true || val === 'true';
+  console.log('toggleAd:', id, '->', boolVal);
+  db.collection('advertisements').doc(id).update({ isActive: boolVal })
+    .then(() => {
+      console.log('toggleAd success:', id, boolVal);
+      showToast(boolVal ? '✅ اشتہار فعال کر دیا' : '⛔ اشتہار غیر فعال کر دیا');
+    })
     .catch(e => {
       console.error('toggleAd error:', e);
       showToast('خطا: ' + e.message);
-      // Re-render to revert the checkbox visually
       renderAds();
     });
 }
