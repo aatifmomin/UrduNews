@@ -1207,20 +1207,48 @@ function openNewsModal(editData=null) {
 }
 function editNews(id) { const n=newsList.find(x=>x.id===id); if(n) openNewsModal(n); }
 function submitNews() {
-  const title=document.getElementById('news-title').value.trim();
-  const desc =document.getElementById('news-desc').value.trim();
-  if (!title||!desc) { showToast('عنوان اور تفصیل لازمی ہے'); return; }
+  const title = document.getElementById('news-title').value.trim();
+  const desc  = document.getElementById('news-desc').value.trim();
+  if (!title || !desc) { showToast('عنوان اور تفصیل لازمی ہے'); return; }
   const editId = document.getElementById('news-edit-id').value;
-  document.getElementById('news-btn-text').innerHTML='<span class="spinner"></span>';
-  const data={title,description:desc,imageUrl:document.getElementById('news-image').value.trim(),category:selectedCat,addedBy:currentUser.email,source:'ایڈمن',isActive:true};
-  const op = editId
-    ? db.collection('custom_news').doc(editId).set(data,{merge:true})
-    : db.collection('custom_news').add({...data,createdAt:Date.now()});
-  op.then(()=>{ closeModal('news-modal'); showToast(editId?'خبر اپڈیٹ ✓':'خبر شائع ✓'); })
-    .catch(e=>showToast('خطا: '+e.message))
-    .finally(()=>{ document.getElementById('news-btn-text').textContent=editId?'محفوظ کریں':'شائع کریں'; });
+  document.getElementById('news-btn-text').innerHTML = '<span class="spinner"></span>';
+
+  if (editId) {
+    // Use update() for edits — preserves isActive and createdAt unchanged
+    db.collection('custom_news').doc(editId).update({
+      title, description: desc,
+      imageUrl: document.getElementById('news-image').value.trim(),
+      category: selectedCat,
+      addedBy: currentUser.email,
+      source: 'ایڈمن'
+    }).then(() => { closeModal('news-modal'); showToast('خبر اپڈیٹ ✓'); })
+      .catch(e => showToast('خطا: ' + e.message))
+      .finally(() => { document.getElementById('news-btn-text').textContent = 'محفوظ کریں'; });
+  } else {
+    // Add new doc with isActive: true and createdAt
+    db.collection('custom_news').add({
+      title, description: desc,
+      imageUrl: document.getElementById('news-image').value.trim(),
+      category: selectedCat,
+      addedBy: currentUser.email,
+      source: 'ایڈمن',
+      isActive: true,
+      createdAt: Date.now()
+    }).then(() => { closeModal('news-modal'); showToast('خبر شائع ✓'); })
+      .catch(e => showToast('خطا: ' + e.message))
+      .finally(() => { document.getElementById('news-btn-text').textContent = 'شائع کریں'; });
+  }
 }
-function toggleNews(id,val) { db.collection('custom_news').doc(id).set({isActive:val},{merge:true}).then(()=>showToast(val?'فعال ✓':'غیر فعال ✓')).catch(e=>showToast('خطا: '+e.message)); }
+function toggleNews(id, val) {
+  db.collection('custom_news').doc(id).update({ isActive: val })
+    .then(() => showToast(val ? '✅ فعال کر دیا' : '⛔ غیر فعال کر دیا'))
+    .catch(e => {
+      console.error('toggleNews error:', e);
+      showToast('خطا: ' + e.message);
+      // Re-render to revert the checkbox visually
+      renderNews();
+    });
+}
 function deleteNews(id) { if(!confirm('حذف کریں؟')) return; db.collection('custom_news').doc(id).delete().then(()=>showToast('حذف ✓')).catch(e=>showToast('خطا: '+e.message)); }
 
 // ── ADS CRUD ──
@@ -1239,20 +1267,46 @@ function openAdModal(editData=null) {
 }
 function editAd(id) { const a=adsList.find(x=>x.id===id); if(a) openAdModal(a); }
 function submitAd() {
-  const title=document.getElementById('ad-title').value.trim();
-  const desc =document.getElementById('ad-desc').value.trim();
-  if (!title||!desc) { showToast('عنوان اور تفصیل لازمی ہے'); return; }
+  const title = document.getElementById('ad-title').value.trim();
+  const desc  = document.getElementById('ad-desc').value.trim();
+  if (!title || !desc) { showToast('عنوان اور تفصیل لازمی ہے'); return; }
   const editId = document.getElementById('ad-edit-id').value;
-  document.getElementById('ad-btn-text').innerHTML='<span class="spinner"></span>';
-  const data={title,description:desc,imageUrl:document.getElementById('ad-image').value.trim(),link:document.getElementById('ad-link').value.trim(),addedBy:currentUser.email,isActive:true};
-  const op = editId
-    ? db.collection('advertisements').doc(editId).set(data,{merge:true})
-    : db.collection('advertisements').add({...data,createdAt:Date.now()});
-  op.then(()=>{ closeModal('ad-modal'); showToast(editId?'اشتہار اپڈیٹ ✓':'اشتہار شائع ✓'); })
-    .catch(e=>showToast('خطا: '+e.message))
-    .finally(()=>{ document.getElementById('ad-btn-text').textContent=editId?'محفوظ کریں':'شائع کریں'; });
+  document.getElementById('ad-btn-text').innerHTML = '<span class="spinner"></span>';
+
+  if (editId) {
+    // Use update() for edits — preserves isActive and createdAt unchanged
+    db.collection('advertisements').doc(editId).update({
+      title, description: desc,
+      imageUrl: document.getElementById('ad-image').value.trim(),
+      link: document.getElementById('ad-link').value.trim(),
+      addedBy: currentUser.email
+    }).then(() => { closeModal('ad-modal'); showToast('اشتہار اپڈیٹ ✓'); })
+      .catch(e => showToast('خطا: ' + e.message))
+      .finally(() => { document.getElementById('ad-btn-text').textContent = 'محفوظ کریں'; });
+  } else {
+    // Add new doc with isActive: true and createdAt
+    db.collection('advertisements').add({
+      title, description: desc,
+      imageUrl: document.getElementById('ad-image').value.trim(),
+      link: document.getElementById('ad-link').value.trim(),
+      addedBy: currentUser.email,
+      isActive: true,
+      createdAt: Date.now()
+    }).then(() => { closeModal('ad-modal'); showToast('اشتہار شائع ✓'); })
+      .catch(e => showToast('خطا: ' + e.message))
+      .finally(() => { document.getElementById('ad-btn-text').textContent = 'شائع کریں'; });
+  }
 }
-function toggleAd(id,val) { db.collection('advertisements').doc(id).set({isActive:val},{merge:true}).then(()=>showToast(val?'فعال ✓':'غیر فعال ✓')).catch(e=>showToast('خطا: '+e.message)); }
+function toggleAd(id, val) {
+  db.collection('advertisements').doc(id).update({ isActive: val })
+    .then(() => showToast(val ? '✅ فعال کر دیا' : '⛔ غیر فعال کر دیا'))
+    .catch(e => {
+      console.error('toggleAd error:', e);
+      showToast('خطا: ' + e.message);
+      // Re-render to revert the checkbox visually
+      renderAds();
+    });
+}
 function deleteAd(id) { if(!confirm('حذف کریں؟')) return; db.collection('advertisements').doc(id).delete().then(()=>showToast('حذف ✓')).catch(e=>showToast('خطا: '+e.message)); }
 
 // ── ACCESS CRUD ──
