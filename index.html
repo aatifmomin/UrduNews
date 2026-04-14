@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="ur" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#018786">
+<title>اردو خبریں — ایڈمن</title>
+
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-app-compat.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-auth-compat.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-firestore-compat.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --teal:       #018786;
+  --teal-d:     #016064;
+  --teal-bg:    #e0f2f1;
+  --teal-light: #b2dfdb;
+  --bg:         #f3f3f3;
+  --surface:    #ffffff;
+  --surface2:   #f8f8f8;
+  --border:     rgba(0,0,0,0.08);
+  --border2:    rgba(0,0,0,0.14);
+  --text:       #1a1a1a;
+  --text2:      #5a5a5a;
+  --success:    #107c10;
+  --success-bg: #dff0df;
+  --danger:     #c42b1c;
+  --danger-bg:  #fde7e9;
+  --warn:       #9d5d00;
+  --warn-bg:    #fff4ce;
+  --purple:     #7560bd;
+  --purple-bg:  #ebe8f8;
+  --r:          8px;
+  --rl:         12px;
+  --sh:         0 1px 4px rgba(0,0,0,0.08);
+  --urdu:       'Noto Nastaliq Urdu', serif;
+  --ui:         -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --topbar:     52px;
+  --bottomnav:  64px;
+  --sidebar:    240px;
+}
+
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+
+html, body {
+  height: 100%; font-family: var(--ui);
+  background: var(--bg); color: var(--text);
+  overflow: hidden;
+}
+
+/* ══ TOPBAR ══ */
+#topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  height: var(--topbar);
+  background: var(--teal);
+  display: flex; align-items: center;
+  padding: 0 14px; gap: 10px;
+  padding-top: env(safe-area-inset-top);
+}
+.tb-logo {
+  width: 32px; height: 32px; background: rgba(255,255,255,0.2);
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  font-family: var(--urdu); font-size: 14px; color: white; font-weight: 700;
+  flex-shrink: 0;
+}
+#menu-btn {
+  width: 36px; height: 36px; background: transparent; border: none;
+  display: flex; flex-direction: column; justify-content: center;
+  align-items: center; gap: 5px; cursor: pointer; flex-shrink: 0;
+  display: none;
+}
+#menu-btn span {
+  width: 20px; height: 2px; background: white; border-radius: 2px;
+  transition: all .2s;
+}
+.tb-title {
+  flex: 1; font-family: var(--urdu); font-size: 16px;
+  color: white; font-weight: 600; text-align: right;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tb-user {
+  display: flex; align-items: center; gap: 8px;
+  color: rgba(255,255,255,0.9); font-size: 12px; flex-shrink: 0;
+}
+.tb-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.5);
+  overflow: hidden; background: rgba(255,255,255,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: white; font-weight: 600; flex-shrink: 0;
+}
+.tb-avatar img { width:100%; height:100%; object-fit:cover; }
+.btn-logout {
+  background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+  color: white; font-size: 12px; padding: 5px 12px; border-radius: 6px;
+  cursor: pointer; font-family: var(--ui);
+}
+#tb-email { display: block; }
+
+/* ══ LAYOUT ══ */
+#app-shell {
+  display: flex; position: fixed;
+  top: var(--topbar); left: 0; right: 0;
+  bottom: 0;
+}
+
+/* ══ SIDEBAR (desktop) ══ */
+#sidebar {
+  width: var(--sidebar);
+  background: rgba(255,255,255,0.8);
+  backdrop-filter: blur(20px);
+  border-left: 1px solid var(--border2);
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding: 10px 0;
+  transition: transform .25s;
+}
+.nav-label {
+  font-size: 11px; color: var(--text2); padding: 12px 16px 4px;
+  text-align: right; font-weight: 600; letter-spacing: 0.3px;
+}
+.nav-item {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 10px; padding: 9px 16px; cursor: pointer;
+  border-radius: 6px; margin: 1px 8px;
+  transition: background .12s; font-size: 14px; color: var(--text);
+  text-align: right; position: relative; user-select: none;
+}
+.nav-item:hover { background: rgba(0,0,0,0.05); }
+.nav-item.active {
+  background: var(--teal-bg); color: var(--teal); font-weight: 600;
+}
+.nav-item.active::before {
+  content: ''; position: absolute;
+  right: -8px; top: 8px; bottom: 8px;
+  width: 3px; border-radius: 2px; background: var(--teal);
+}
+.nav-icon { font-size: 16px; flex-shrink: 0; }
+.nav-badge {
+  background: var(--teal); color: white;
+  font-size: 10px; padding: 1px 6px; border-radius: 10px; margin-right: auto;
+}
+
+/* ══ CONTENT ══ */
+#content {
+  flex: 1; overflow-y: auto; padding: 20px 24px;
+  padding-bottom: 20px;
+}
+.page { display: none; flex-direction: column; gap: 16px; }
+.page.active { display: flex; }
+
+/* ══ PAGE HEADER ══ */
+.ph {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px;
+}
+.ph-left .ptitle { font-family: var(--urdu); font-size: 20px; font-weight: 700; }
+.ph-left .psub { font-size: 12px; color: var(--text2); font-family: var(--urdu); margin-top: 2px; }
+
+/* ══ BUTTONS ══ */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: var(--r);
+  font-size: 13px; font-family: var(--ui); cursor: pointer;
+  border: 1px solid transparent; transition: all .12s; font-weight: 400;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--teal); color: white; border-color: var(--teal-d); }
+.btn-primary:hover { background: var(--teal-d); }
+.btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border2); }
+.btn-secondary:hover { background: var(--surface2); }
+.btn-danger { background: var(--danger-bg); color: var(--danger); border-color: #f5c6c6; }
+.btn-sm { padding: 5px 11px; font-size: 12px; }
+.btn-full { width: 100%; justify-content: center; }
+
+/* ══ CARD ══ */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--rl); box-shadow: var(--sh); overflow: hidden;
+}
+.card-hdr {
+  padding: 13px 18px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-title { font-family: var(--urdu); font-size: 15px; font-weight: 600; }
+
+/* ══ STAT CARDS ══ */
+.stats-grid {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 12px;
+}
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--rl); padding: 16px; box-shadow: var(--sh);
+}
+.stat-icon {
+  width: 36px; height: 36px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; margin-bottom: 10px;
+}
+.stat-value { font-size: 26px; font-weight: 300; line-height: 1; }
+.stat-label { font-size: 12px; color: var(--text2); margin-top: 4px; font-family: var(--urdu); }
+.si-teal   { background: var(--teal-bg); }
+.si-green  { background: var(--success-bg); }
+.si-warn   { background: var(--warn-bg); }
+.si-purple { background: var(--purple-bg); }
+
+/* ══ TABLE (desktop) ══ */
+.tbl-wrap { overflow-x: auto; }
+.win-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.win-table th {
+  text-align: right; padding: 10px 14px; font-weight: 500;
+  color: var(--text2); font-size: 12px; border-bottom: 1px solid var(--border2);
+  white-space: nowrap; background: var(--surface2);
+}
+.win-table td {
+  padding: 11px 14px; border-bottom: 1px solid var(--border);
+  vertical-align: middle; text-align: right;
+}
+.win-table tbody tr:hover { background: var(--surface2); }
+.win-table tbody tr:last-child td { border-bottom: none; }
+
+/* ══ MOBILE CARDS (replaces table on mobile) ══ */
+.item-cards { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+.item-card {
+  background: var(--surface2); border-radius: var(--r);
+  border: 1px solid var(--border); padding: 12px 14px;
+}
+.item-card-title {
+  font-family: var(--urdu); font-size: 14px; font-weight: 600;
+  margin-bottom: 6px; line-height: 1.4;
+}
+.item-card-meta {
+  font-size: 11px; color: var(--text2); margin-bottom: 8px;
+  display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end;
+}
+.item-card-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* ══ BADGE ══ */
+.badge {
+  display: inline-flex; align-items: center; padding: 2px 9px;
+  border-radius: 20px; font-size: 11px; font-weight: 500; white-space: nowrap;
+}
+.b-success { background: var(--success-bg); color: var(--success); }
+.b-danger  { background: var(--danger-bg);  color: var(--danger); }
+.b-warn    { background: var(--warn-bg);    color: var(--warn); }
+.b-teal    { background: var(--teal-bg);    color: var(--teal); }
+.b-purple  { background: var(--purple-bg);  color: var(--purple); }
+
+/* ══ FORM ══ */
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-size: 12.5px; font-weight: 500; color: var(--text2); font-family: var(--urdu); }
+.form-control {
+  padding: 10px 12px; border-radius: var(--r);
+  border: 1px solid var(--border2); font-size: 14px;
+  font-family: var(--urdu); background: var(--surface);
+  color: var(--text); width: 100%;
+  direction: rtl; text-align: right;
+  -webkit-appearance: none; appearance: none;
+}
+.form-control:focus {
+  outline: none; border-color: var(--teal);
+  box-shadow: 0 0 0 2px rgba(1,135,134,0.15);
+}
+textarea.form-control { resize: vertical; min-height: 90px; }
+
+/* ══ TOGGLE ══ */
+.toggle { position: relative; width: 42px; height: 24px; cursor: pointer; flex-shrink: 0; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-track {
+  position: absolute; inset: 0; background: #ccc;
+  border-radius: 12px; transition: background .2s;
+}
+.toggle-thumb {
+  position: absolute; top: 4px; right: 4px;
+  width: 16px; height: 16px; border-radius: 50%; background: white;
+  transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.toggle input:checked ~ .toggle-track { background: var(--teal); }
+.toggle input:checked ~ .toggle-thumb { transform: translateX(-18px); }
+
+/* ══ CHART ══ */
+.bar-chart { display: flex; align-items: flex-end; gap: 3px; height: 80px; }
+.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.bar-fill { width: 100%; background: var(--teal-bg); border-radius: 3px 3px 0 0; min-height: 2px; }
+.bar-fill.today { background: var(--teal); }
+.bar-day { font-size: 9px; color: var(--text2); }
+
+/* ══ MODAL ══ */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  display: none; align-items: flex-end; justify-content: center;
+  z-index: 200;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface); border-radius: 20px 20px 0 0;
+  width: 100%; max-width: 600px; max-height: 92vh;
+  overflow-y: auto; padding-bottom: env(safe-area-inset-bottom);
+  animation: slideUp .25s ease;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal-handle {
+  width: 40px; height: 4px; background: var(--border2);
+  border-radius: 2px; margin: 10px auto 0;
+}
+.modal-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px 10px; border-bottom: 1px solid var(--border);
+}
+.modal-title { font-family: var(--urdu); font-size: 16px; font-weight: 700; }
+.modal-close {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; border: none; background: var(--surface2);
+  font-size: 14px; color: var(--text2);
+}
+.modal-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+.modal-foot {
+  padding: 12px 18px; border-top: 1px solid var(--border);
+  display: flex; gap: 10px; flex-wrap: wrap;
+}
+
+/* ══ CHIPS ══ */
+.chip-group { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  padding: 5px 13px; border-radius: 20px; font-size: 12px;
+  cursor: pointer; border: 1px solid var(--border2);
+  background: var(--surface2); color: var(--text2);
+  font-family: var(--urdu); transition: all .12s;
+  -webkit-tap-highlight-color: transparent;
+}
+.chip.selected { background: var(--teal-bg); border-color: var(--teal); color: var(--teal); }
+
+/* ══ IMAGE PREVIEW ══ */
+#news-img-preview, #ad-img-preview {
+  width: 100%; height: 140px; object-fit: cover;
+  border-radius: var(--r); border: 1px solid var(--border); display: none;
+}
+
+/* ══ ADMIN ROW ══ */
+.admin-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 16px; border-bottom: 1px solid var(--border);
+}
+.admin-row:last-child { border-bottom: none; }
+.admin-avatar {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: white;
+}
+
+/* ══ EMPTY ══ */
+.empty { text-align: center; padding: 36px 20px; color: var(--text2); }
+.empty-icon { font-size: 36px; opacity: 0.4; margin-bottom: 8px; }
+.empty-text { font-family: var(--urdu); font-size: 13px; }
+
+/* ══ TOAST ══ */
+#toast {
+  position: fixed; bottom: calc(var(--bottomnav) + 12px); left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: #333; color: white; padding: 10px 20px;
+  border-radius: 20px; font-size: 13px; font-family: var(--urdu);
+  z-index: 9999; opacity: 0; transition: all .25s; pointer-events: none;
+  white-space: nowrap; max-width: 90vw;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ══ SPINNER ══ */
+.spinner {
+  width: 16px; height: 16px; border: 2px solid transparent;
+  border-top-color: white; border-radius: 50%;
+  animation: spin .7s linear infinite; display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ══ LOGIN ══ */
+#login-screen {
+  position: fixed; inset: 0; z-index: 500;
+  background: linear-gradient(160deg, #004D40, #018786 60%, #4DB6AC);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.login-card {
+  background: white; border-radius: 20px; padding: 36px 28px;
+  width: 100%; max-width: 380px; text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+}
+.login-logo {
+  width: 64px; height: 64px; background: var(--teal); border-radius: 18px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 18px; font-family: var(--urdu);
+  font-size: 28px; color: white; font-weight: 700;
+}
+.login-title { font-family: var(--urdu); font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+.login-sub { font-family: var(--urdu); font-size: 14px; color: var(--text2); margin-bottom: 28px; line-height: 1.6; }
+.btn-google {
+  width: 100%; padding: 13px 20px; background: white;
+  border: 1.5px solid var(--border2); border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  cursor: pointer; font-size: 15px; font-family: var(--urdu);
+  box-shadow: var(--sh); transition: background .12s;
+}
+.btn-google:hover, .btn-google:active { background: var(--surface2); }
+.g-logo { font-size: 18px; font-weight: 700; color: #4285F4; font-family: sans-serif; }
+#login-error {
+  margin-top: 14px; padding: 10px; background: var(--danger-bg);
+  border-radius: 8px; color: var(--danger);
+  font-size: 13px; font-family: var(--urdu); display: none;
+}
+
+/* ══ BOTTOM NAV (mobile) ══ */
+#bottom-nav {
+  display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  height: var(--bottomnav); background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(20px); border-top: 1px solid var(--border2);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.bnav-inner {
+  display: flex; align-items: stretch; height: 100%;
+}
+.bnav-item {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px;
+  cursor: pointer; transition: background .12s;
+  color: var(--text2); position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+.bnav-item.active { color: var(--teal); }
+.bnav-item.active::before {
+  content: ''; position: absolute; top: 0; left: 20%; right: 20%;
+  height: 3px; background: var(--teal); border-radius: 0 0 3px 3px;
+}
+.bnav-icon { font-size: 20px; }
+.bnav-label { font-size: 10px; font-family: var(--urdu); }
+.bnav-badge {
+  position: absolute; top: 8px; right: calc(50% - 18px);
+  background: var(--teal); color: white;
+  font-size: 9px; padding: 1px 4px; border-radius: 6px;
+}
+
+/* ══ OVERLAY for mobile sidebar ══ */
+#sidebar-overlay {
+  display: none; position: fixed; inset: 0; z-index: 99;
+  background: rgba(0,0,0,0.3);
+}
+
+/* ══ DASHBOARD GRID ══ */
+.dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+/* ══════════════════════════════════
+   RESPONSIVE BREAKPOINTS
+══════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Show mobile menu btn, hide desktop email */
+  #menu-btn    { display: flex !important; }
+  #tb-email    { display: none; }
+  .tb-title    { font-size: 15px; }
+
+  /* Sidebar becomes overlay on mobile */
+  #sidebar {
+    position: fixed; top: var(--topbar); bottom: 0; right: 0;
+    z-index: 100; transform: translateX(100%);
+    box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+  }
+  #sidebar.open { transform: translateX(0); }
+  #sidebar-overlay.open { display: block; }
+
+  /* Show bottom nav */
+  #bottom-nav { display: flex; }
+
+  /* Content padding for bottom nav */
+  #content {
+    padding: 14px 14px;
+    padding-bottom: calc(var(--bottomnav) + 16px);
+  }
+
+  /* Toast above bottom nav */
+  #toast { bottom: calc(var(--bottomnav) + 16px); }
+
+  /* Stats grid: 2 columns on mobile */
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card { padding: 12px; }
+  .stat-value { font-size: 22px; }
+
+  /* Tables → hide, show cards */
+  .tbl-wrap, .win-table { display: none; }
+  .item-cards { display: flex; }
+
+  /* Dash grid → single col on very small */
+  .dash-grid { grid-template-columns: 1fr; }
+
+  /* Modal → bottom sheet already */
+  .modal { border-radius: 20px 20px 0 0; }
+
+  /* Page header wraps on mobile */
+  .ph { flex-direction: row; }
+  .ph-left .ptitle { font-size: 18px; }
+}
+
+@media (min-width: 769px) {
+  /* Desktop: hide mobile UI */
+  #bottom-nav  { display: none !important; }
+  #menu-btn    { display: none !important; }
+  #sidebar     { transform: none !important; }
+  #sidebar-overlay { display: none !important; }
+
+  /* Tables visible */
+  .tbl-wrap    { display: block; }
+  .win-table   { display: table; }
+  .item-cards  { display: none; }
+
+  /* Modal: centered dialog on desktop */
+  .modal-overlay { align-items: center; }
+  .modal {
+    border-radius: 14px; width: 560px;
+    animation: fadeIn .2s ease;
+  }
+  .modal-handle { display: none; }
+  @keyframes fadeIn { from { opacity:0; transform:scale(0.97); } to { opacity:1; transform:scale(1); } }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .dash-grid  { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">اخ</div>
+    <div class="login-title">اردو خبریں ایڈمن</div>
+    <div class="login-sub">ایڈمن پینل تک رسائی کے لیے<br>اپنے گوگل اکاؤنٹ سے لاگ ان کریں</div>
+    <button class="btn-google" onclick="signInWithGoogle()">
+      <span class="g-logo">G</span> گوگل سے لاگ ان کریں
+    </button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- ══ TOPBAR ══ -->
+<div id="topbar" style="display:none;">
+  <button id="menu-btn" onclick="toggleSidebar()">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="tb-logo">اخ</div>
+  <div class="tb-title">اردو خبریں — ایڈمن</div>
+  <div class="tb-user">
+    <span id="tb-email"></span>
+    <div class="tb-avatar" id="user-avatar"><img id="user-photo" src="" alt=""></div>
+    <button class="btn-logout" onclick="signOut()">لاگ آؤٹ</button>
+  </div>
+</div>
+
+<div id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- ══ APP ══ -->
+<div id="app-shell" style="display:none;">
+
+  <!-- SIDEBAR -->
+  <nav id="sidebar">
+    <div class="nav-label">مین مینو</div>
+    <div class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard');closeSidebar()">
+      <span>ڈیش بورڈ</span><div class="nav-icon">📊</div>
+    </div>
+    <div class="nav-item" id="nav-news" onclick="showPage('news');closeSidebar()">
+      <span>خبریں</span>
+      <span class="nav-badge" id="news-count-badge">0</span>
+      <div class="nav-icon">📰</div>
+    </div>
+    <div class="nav-item" id="nav-ads" onclick="showPage('ads');closeSidebar()">
+      <span>اشتہارات</span>
+      <span class="nav-badge" id="ads-count-badge">0</span>
+      <div class="nav-icon">📢</div>
+    </div>
+    <div class="nav-label">ترتیبات</div>
+    <div class="nav-item" id="nav-access" onclick="showPage('access');closeSidebar()">
+      <span>ایڈمن ایکسیس</span><div class="nav-icon">🔐</div>
+    </div>
+  </nav>
+
+  <!-- CONTENT -->
+  <main id="content">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="ph">
+        <div class="ph-left">
+          <div class="ptitle">ڈیش بورڈ</div>
+          <div class="psub">خلاصہ اور اعداد و شمار</div>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon si-teal">📰</div>
+          <div class="stat-value" id="stat-total-news">—</div>
+          <div class="stat-label">کل خبریں</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon si-green">✅</div>
+          <div class="stat-value" id="stat-active-news">—</div>
+          <div class="stat-label">فعال خبریں</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon si-warn">📢</div>
+          <div class="stat-value" id="stat-total-ads">—</div>
+          <div class="stat-label">کل اشتہارات</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon si-purple">🟢</div>
+          <div class="stat-value" id="stat-active-ads">—</div>
+          <div class="stat-label">فعال اشتہارات</div>
+        </div>
+      </div>
+      <div class="dash-grid">
+        <div class="card">
+          <div class="card-hdr">
+            <div class="card-title">روزانہ فعال صارف (14 دن)</div>
+          </div>
+          <div style="padding:14px 16px;">
+            <div class="bar-chart" id="users-chart">
+              <div style="font-size:12px;color:var(--text2);">لوڈ ہو رہا ہے...</div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-hdr">
+            <div class="card-title">حالیہ خبریں</div>
+            <button class="btn btn-primary btn-sm" onclick="showPage('news')">سب دیکھیں</button>
+          </div>
+          <div id="dash-news-list" style="max-height:180px;overflow-y:auto;"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr">
+          <div class="card-title">حالیہ اشتہارات</div>
+          <button class="btn btn-primary btn-sm" onclick="showPage('ads')">سب دیکھیں</button>
+        </div>
+        <div id="dash-ads-list" style="max-height:200px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- NEWS -->
+    <div class="page" id="page-news">
+      <div class="ph">
+        <div class="ph-left">
+          <div class="ptitle">خبریں</div>
+          <div class="psub">تمام ایڈمن خبریں</div>
+        </div>
+        <button class="btn btn-primary" onclick="openNewsModal()">＋ نئی خبر</button>
+      </div>
+      <div class="card">
+        <!-- Desktop table -->
+        <div class="tbl-wrap">
+          <table class="win-table" id="news-table">
+            <thead>
+              <tr>
+                <th>عنوان</th><th>زمرہ</th><th>شامل کیا</th>
+                <th>تاریخ</th><th>حالت</th><th style="text-align:center;">اقدامات</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <!-- Mobile cards -->
+        <div class="item-cards" id="news-cards"></div>
+        <div id="news-empty" class="empty" style="display:none;">
+          <div class="empty-icon">📰</div>
+          <div class="empty-text">ابھی کوئی خبر نہیں</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADS -->
+    <div class="page" id="page-ads">
+      <div class="ph">
+        <div class="ph-left">
+          <div class="ptitle">اشتہارات</div>
+          <div class="psub">تمام اشتہارات</div>
+        </div>
+        <button class="btn btn-primary" onclick="openAdModal()">＋ نیا اشتہار</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap">
+          <table class="win-table" id="ads-table">
+            <thead>
+              <tr>
+                <th>عنوان</th><th>تفصیل</th><th>شامل کیا</th>
+                <th>تاریخ</th><th>حالت</th><th style="text-align:center;">اقدامات</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="item-cards" id="ads-cards"></div>
+        <div id="ads-empty" class="empty" style="display:none;">
+          <div class="empty-icon">📢</div>
+          <div class="empty-text">ابھی کوئی اشتہار نہیں</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACCESS -->
+    <div class="page" id="page-access">
+      <div class="ph">
+        <div class="ph-left">
+          <div class="ptitle">ایڈمن ایکسیس</div>
+          <div class="psub">رسائی کا انتظام</div>
+        </div>
+        <button class="btn btn-primary" id="add-admin-btn" onclick="openAccessModal()">＋ نیا ایڈمن</button>
+      </div>
+      <div class="card">
+        <div class="card-hdr">
+          <div class="card-title">بنیادی ایڈمن</div>
+          <span class="badge b-purple">مستقل 👑</span>
+        </div>
+        <div id="buniyadi-list"></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr">
+          <div class="card-title">اضافی ایڈمن</div>
+          <span class="badge b-teal" id="izafi-count">0</span>
+        </div>
+        <div id="izafi-list">
+          <div class="empty"><div class="empty-icon">🔐</div><div class="empty-text">کوئی اضافی ایڈمن نہیں</div></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ══ BOTTOM NAV ══ -->
+<div id="bottom-nav">
+  <div class="bnav-inner">
+    <div class="bnav-item active" id="bnav-dashboard" onclick="showPage('dashboard')">
+      <div class="bnav-icon">📊</div>
+      <div class="bnav-label">ڈیش بورڈ</div>
+    </div>
+    <div class="bnav-item" id="bnav-news" onclick="showPage('news')">
+      <div class="bnav-icon">📰</div>
+      <div class="bnav-label">خبریں</div>
+      <span class="bnav-badge" id="bnav-news-badge" style="display:none;"></span>
+    </div>
+    <div class="bnav-item" id="bnav-ads" onclick="showPage('ads')">
+      <div class="bnav-icon">📢</div>
+      <div class="bnav-label">اشتہارات</div>
+      <span class="bnav-badge" id="bnav-ads-badge" style="display:none;"></span>
+    </div>
+    <div class="bnav-item" id="bnav-access" onclick="showPage('access')">
+      <div class="bnav-icon">🔐</div>
+      <div class="bnav-label">ایکسیس</div>
+    </div>
+  </div>
+</div>
+
+<!-- NEWS MODAL -->
+<div class="modal-overlay" id="news-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-hdr">
+      <button class="modal-close" onclick="closeModal('news-modal')">✕</button>
+      <div class="modal-title" id="news-modal-title">نئی خبر شامل کریں</div>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="news-edit-id">
+      <div class="form-group">
+        <label class="form-label">عنوان *</label>
+        <input class="form-control" id="news-title" placeholder="خبر کا عنوان">
+      </div>
+      <div class="form-group">
+        <label class="form-label">تصویر لنک</label>
+        <input class="form-control" id="news-image" placeholder="https://..." oninput="previewImg('news-image','news-img-preview')" style="direction:ltr;text-align:left;">
+        <img id="news-img-preview">
+      </div>
+      <div class="form-group">
+        <label class="form-label">تفصیل *</label>
+        <textarea class="form-control" id="news-desc" placeholder="خبر کی تفصیل"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">زمرہ</label>
+        <div class="chip-group" id="category-chips">
+          <div class="chip selected" data-cat="top">تمام</div>
+          <div class="chip" data-cat="politics">سیاست</div>
+          <div class="chip" data-cat="business">کاروبار</div>
+          <div class="chip" data-cat="technology">ٹیکنالوجی</div>
+          <div class="chip" data-cat="sports">کھیل</div>
+          <div class="chip" data-cat="entertainment">تفریح</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="submitNews()"><span id="news-btn-text">شائع کریں</span></button>
+      <button class="btn btn-secondary" onclick="closeModal('news-modal')">منسوخ</button>
+    </div>
+  </div>
+</div>
+
+<!-- AD MODAL -->
+<div class="modal-overlay" id="ad-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-hdr">
+      <button class="modal-close" onclick="closeModal('ad-modal')">✕</button>
+      <div class="modal-title" id="ad-modal-title">نیا اشتہار بنائیں</div>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ad-edit-id">
+      <div class="form-group">
+        <label class="form-label">عنوان *</label>
+        <input class="form-control" id="ad-title" placeholder="اشتہار کا عنوان">
+      </div>
+      <div class="form-group">
+        <label class="form-label">تصویر لنک</label>
+        <input class="form-control" id="ad-image" placeholder="https://..." oninput="previewImg('ad-image','ad-img-preview')" style="direction:ltr;text-align:left;">
+        <img id="ad-img-preview">
+      </div>
+      <div class="form-group">
+        <label class="form-label">تفصیل *</label>
+        <textarea class="form-control" id="ad-desc" placeholder="اشتہار کی تفصیل"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">لنک (اختیاری)</label>
+        <input class="form-control" id="ad-link" placeholder="https://" style="direction:ltr;text-align:left;">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="submitAd()"><span id="ad-btn-text">شائع کریں</span></button>
+      <button class="btn btn-secondary" onclick="closeModal('ad-modal')">منسوخ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ACCESS MODAL -->
+<div class="modal-overlay" id="access-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-hdr">
+      <button class="modal-close" onclick="closeModal('access-modal')">✕</button>
+      <div class="modal-title">نیا ایڈمن شامل کریں</div>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--warn-bg);border-radius:8px;padding:10px 14px;font-family:var(--urdu);font-size:13px;color:var(--warn);">
+        ℹ️ شامل کیا گیا ایڈمن خبریں اور اشتہارات شائع کر سکے گا
+      </div>
+      <div class="form-group">
+        <label class="form-label">نام</label>
+        <input class="form-control" id="access-name" placeholder="ایڈمن کا نام">
+      </div>
+      <div class="form-group">
+        <label class="form-label">گوگل ای میل *</label>
+        <input class="form-control" id="access-email" placeholder="example@gmail.com" style="direction:ltr;text-align:left;">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="submitAccess()"><span id="access-btn-text">شامل کریں</span></button>
+      <button class="btn btn-secondary" onclick="closeModal('access-modal')">منسوخ</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const firebaseConfig = {
+  apiKey:            "AIzaSyDkDQf6dEjmQNCbT6aH7EDemJGzfbnBtuU",
+  authDomain:        "urdunewsapp-7d141.firebaseapp.com",
+  projectId:         "urdunewsapp-7d141",
+  storageBucket:     "urdunewsapp-7d141.firebasestorage.app",
+  messagingSenderId: "358236277041",
+  appId:             "1:358236277041:web:a6e9b581dcda6622bc8810",
+  measurementId:     "G-GWZV9JL1QS"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+const BUNIYADI_EMAILS = ["aatifmomin95@gmail.com","umais.momin.89@gmail.com"];
+
+let currentUser = null;
+let isBuniyadi  = false;
+let selectedCat = "top";
+let newsList    = [];
+let adsList     = [];
+
+// ── AUTH ──
+function signInWithGoogle() {
+  const p = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(p).catch(e => {
+    const el = document.getElementById('login-error');
+    el.textContent = 'خطا: ' + e.message;
+    el.style.display = 'block';
+  });
+}
+function signOut() {
+  if (confirm('کیا آپ لاگ آؤٹ کرنا چاہتے ہیں؟')) auth.signOut();
+}
+
+auth.onAuthStateChanged(user => {
+  if (!user) { showLogin(); return; }
+  db.collection('admin_access').get().then(snap => {
+    const izafi = snap.docs.map(d => d.data().email);
+    const all   = [...BUNIYADI_EMAILS, ...izafi];
+    if (!all.includes(user.email)) {
+      auth.signOut();
+      const el = document.getElementById('login-error');
+      el.textContent = 'آپ کو ایڈمن ایکسیس نہیں ہے';
+      el.style.display = 'block';
+      return;
+    }
+    currentUser = user;
+    isBuniyadi  = BUNIYADI_EMAILS.includes(user.email);
+    showApp();
+  });
+});
+
+function showLogin() {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('topbar').style.display       = 'none';
+  document.getElementById('app-shell').style.display    = 'none';
+}
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('topbar').style.display       = 'flex';
+  document.getElementById('app-shell').style.display    = 'flex';
+
+  const photo = currentUser.photoURL;
+  if (photo) {
+    document.getElementById('user-photo').src = photo;
+  } else {
+    document.getElementById('user-photo').style.display = 'none';
+    document.getElementById('user-avatar').textContent =
+      (currentUser.displayName||currentUser.email||'A')[0].toUpperCase();
+  }
+  document.getElementById('tb-email').textContent =
+    currentUser.displayName || currentUser.email;
+  if (!isBuniyadi) document.getElementById('add-admin-btn').style.display = 'none';
+
+  // Build buniyadi list
+  document.getElementById('buniyadi-list').innerHTML = BUNIYADI_EMAILS.map(email => `
+    <div class="admin-row">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="admin-avatar" style="background:var(--purple);">${email[0].toUpperCase()}</div>
+        <div>
+          <div style="font-size:13px;font-weight:600;">${email}</div>
+          <span class="badge b-purple" style="margin-top:3px;">سپر ایڈمن 👑</span>
+        </div>
+      </div>
+    </div>`).join('');
+
+  startListeners();
+  loadStatsChart();
+}
+
+// ── SIDEBAR TOGGLE (mobile) ──
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+}
+
+// ── NAVIGATION ──
+function showPage(page) {
+  ['dashboard','news','ads','access'].forEach(p => {
+    document.getElementById('page-'+p).classList.toggle('active', p===page);
+    const sNav = document.getElementById('nav-'+p);
+    if (sNav) sNav.classList.toggle('active', p===page);
+    const bNav = document.getElementById('bnav-'+p);
+    if (bNav) bNav.classList.toggle('active', p===page);
+  });
+  if (page==='dashboard') updateDashStats();
+  window.scrollTo(0,0);
+}
+
+// ── LISTENERS ──
+function startListeners() {
+  db.collection('custom_news').orderBy('createdAt','desc').onSnapshot(snap => {
+    newsList = snap.docs.map(d => ({id:d.id,...d.data()}));
+    renderNews(); updateBadges(); updateDashStats();
+  });
+  db.collection('advertisements').orderBy('createdAt','desc').onSnapshot(snap => {
+    adsList = snap.docs.map(d => ({id:d.id,...d.data()}));
+    renderAds(); updateBadges(); updateDashStats();
+  });
+  db.collection('admin_access').orderBy('createdAt','desc').onSnapshot(snap => {
+    const list = snap.docs.map(d => ({id:d.id,...d.data()}));
+    renderAccess(list);
+  });
+}
+
+function updateBadges() {
+  document.getElementById('news-count-badge').textContent = newsList.length;
+  document.getElementById('ads-count-badge').textContent  = adsList.length;
+  const nb = document.getElementById('bnav-news-badge');
+  const ab = document.getElementById('bnav-ads-badge');
+  if (newsList.length > 0) { nb.textContent = newsList.length; nb.style.display = ''; }
+  else nb.style.display = 'none';
+  if (adsList.length > 0) { ab.textContent = adsList.length; ab.style.display = ''; }
+  else ab.style.display = 'none';
+}
+
+function updateDashStats() {
+  document.getElementById('stat-total-news').textContent  = newsList.length;
+  document.getElementById('stat-active-news').textContent = newsList.filter(n=>n.isActive).length;
+  document.getElementById('stat-total-ads').textContent   = adsList.length;
+  document.getElementById('stat-active-ads').textContent  = adsList.filter(a=>a.isActive).length;
+
+  // Dashboard news list (works as cards on both desktop/mobile)
+  const dnl = document.getElementById('dash-news-list');
+  dnl.innerHTML = newsList.slice(0,5).map(n=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);">
+      <span class="badge ${n.isActive?'b-success':'b-danger'}">${n.isActive?'فعال':'بند'}</span>
+      <div style="font-family:var(--urdu);font-size:13px;font-weight:500;text-align:right;flex:1;margin-right:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${n.title||''}</div>
+    </div>`).join('') || '<div class="empty"><div class="empty-text">کوئی خبر نہیں</div></div>';
+
+  const dal = document.getElementById('dash-ads-list');
+  dal.innerHTML = adsList.slice(0,5).map(a=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);">
+      <span class="badge ${a.isActive?'b-success':'b-danger'}">${a.isActive?'فعال':'بند'}</span>
+      <div style="font-family:var(--urdu);font-size:13px;font-weight:500;text-align:right;flex:1;margin-right:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.title||''}</div>
+    </div>`).join('') || '<div class="empty"><div class="empty-text">کوئی اشتہار نہیں</div></div>';
+}
+
+async function loadStatsChart() {
+  const chart = document.getElementById('users-chart');
+  chart.innerHTML = '<div style="font-size:12px;color:var(--text2);">لوڈ ہو رہا ہے...</div>';
+  const fmt = d => { const dd=new Date(d); return dd.getFullYear()+'-'+String(dd.getMonth()+1).padStart(2,'0')+'-'+String(dd.getDate()).padStart(2,'0'); };
+  const days = [];
+  for(let i=13;i>=0;i--) { const d=new Date(); d.setDate(d.getDate()-i); days.push({date:fmt(d),label:d.getDate()+'/'+(d.getMonth()+1),count:0}); }
+  await Promise.all(days.map(async day => {
+    try { const s=await db.collection('stats_daily').doc(day.date).collection('active_users').get(); day.count=s.size; }
+    catch(e) { day.count=0; }
+  }));
+  const max = Math.max(...days.map(d=>d.count),1);
+  chart.innerHTML = days.map((d,i)=>`
+    <div class="bar-col">
+      <div class="bar-fill ${i===days.length-1?'today':''}" style="height:${Math.round((d.count/max)*70)+2}px" title="${d.count}"></div>
+      <div class="bar-day">${d.label}</div>
+    </div>`).join('');
+}
+
+// ── RENDER NEWS ──
+function renderNews() {
+  const empty = document.getElementById('news-empty');
+  if (!newsList.length) {
+    empty.style.display='block';
+    document.querySelector('#news-table tbody').innerHTML='';
+    document.getElementById('news-cards').innerHTML='';
+    return;
+  }
+  empty.style.display='none';
+
+  // Desktop table
+  document.querySelector('#news-table tbody').innerHTML = newsList.map(n=>`
+    <tr>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;font-family:var(--urdu);">${n.title||''}</td>
+      <td><span class="badge b-teal">${catLabel(n.category)}</span></td>
+      <td style="font-size:12px;color:var(--text2);">${n.addedBy||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);white-space:nowrap;">${fmtDate(n.createdAt)}</td>
+      <td>
+        <label class="toggle">
+          <input type="checkbox" ${n.isActive?'checked':''} onchange="toggleNews('${n.id}',this.checked)">
+          <div class="toggle-track"></div><div class="toggle-thumb"></div>
+        </label>
+      </td>
+      <td><div style="display:flex;gap:6px;justify-content:center;">
+        <button class="btn btn-secondary btn-sm" onclick="editNews('${n.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteNews('${n.id}')">🗑</button>
+      </div></td>
+    </tr>`).join('');
+
+  // Mobile cards
+  document.getElementById('news-cards').innerHTML = newsList.map(n=>`
+    <div class="item-card">
+      <div class="item-card-title">${n.title||''}</div>
+      <div class="item-card-meta">
+        <span class="badge b-teal">${catLabel(n.category)}</span>
+        <span>${fmtDate(n.createdAt)}</span>
+        <span style="font-size:11px;">${n.addedBy||''}</span>
+      </div>
+      <div class="item-card-actions">
+        <label class="toggle">
+          <input type="checkbox" ${n.isActive?'checked':''} onchange="toggleNews('${n.id}',this.checked)">
+          <div class="toggle-track"></div><div class="toggle-thumb"></div>
+        </label>
+        <span style="font-size:12px;color:var(--text2);font-family:var(--urdu);">${n.isActive?'فعال':'غیر فعال'}</span>
+        <button class="btn btn-secondary btn-sm" onclick="editNews('${n.id}')">✏️ ترمیم</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteNews('${n.id}')">🗑 حذف</button>
+      </div>
+    </div>`).join('');
+}
+
+// ── RENDER ADS ──
+function renderAds() {
+  const empty = document.getElementById('ads-empty');
+  if (!adsList.length) {
+    empty.style.display='block';
+    document.querySelector('#ads-table tbody').innerHTML='';
+    document.getElementById('ads-cards').innerHTML='';
+    return;
+  }
+  empty.style.display='none';
+
+  document.querySelector('#ads-table tbody').innerHTML = adsList.map(a=>`
+    <tr>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;font-family:var(--urdu);">${a.title||''}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);font-family:var(--urdu);">${a.description||''}</td>
+      <td style="font-size:12px;color:var(--text2);">${a.addedBy||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);white-space:nowrap;">${fmtDate(a.createdAt)}</td>
+      <td>
+        <label class="toggle">
+          <input type="checkbox" ${a.isActive?'checked':''} onchange="toggleAd('${a.id}',this.checked)">
+          <div class="toggle-track"></div><div class="toggle-thumb"></div>
+        </label>
+      </td>
+      <td><div style="display:flex;gap:6px;justify-content:center;">
+        <button class="btn btn-secondary btn-sm" onclick="editAd('${a.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteAd('${a.id}')">🗑</button>
+      </div></td>
+    </tr>`).join('');
+
+  document.getElementById('ads-cards').innerHTML = adsList.map(a=>`
+    <div class="item-card">
+      <div class="item-card-title">${a.title||''}</div>
+      <div class="item-card-meta">
+        <span>${fmtDate(a.createdAt)}</span>
+        <span style="font-size:11px;">${a.addedBy||''}</span>
+        ${a.link ? `<a href="${a.link}" target="_blank" style="color:var(--teal);font-size:11px;">لنک</a>` : ''}
+      </div>
+      <div class="item-card-actions">
+        <label class="toggle">
+          <input type="checkbox" ${a.isActive?'checked':''} onchange="toggleAd('${a.id}',this.checked)">
+          <div class="toggle-track"></div><div class="toggle-thumb"></div>
+        </label>
+        <span style="font-size:12px;color:var(--text2);font-family:var(--urdu);">${a.isActive?'فعال':'غیر فعال'}</span>
+        <button class="btn btn-secondary btn-sm" onclick="editAd('${a.id}')">✏️ ترمیم</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteAd('${a.id}')">🗑 حذف</button>
+      </div>
+    </div>`).join('');
+}
+
+// ── RENDER ACCESS ──
+function renderAccess(list) {
+  document.getElementById('izafi-count').textContent = list.length + ' ایڈمن';
+  const el = document.getElementById('izafi-list');
+  if (!list.length) {
+    el.innerHTML='<div class="empty"><div class="empty-icon">🔐</div><div class="empty-text">کوئی اضافی ایڈمن نہیں</div></div>';
+    return;
+  }
+  el.innerHTML = list.map(a=>`
+    <div class="admin-row">
+      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+        <div class="admin-avatar" style="background:var(--teal);">${(a.name||a.email||'A')[0].toUpperCase()}</div>
+        <div style="min-width:0;flex:1;">
+          <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.name||''} <span style="color:var(--text2);font-weight:400;">${a.email||''}</span></div>
+          <div style="font-size:11px;color:var(--text2);">شامل کیا: ${a.addedBy||'—'}</div>
+        </div>
+      </div>
+      ${isBuniyadi?`<button class="btn btn-danger btn-sm" style="flex-shrink:0;" onclick="removeAccess('${a.id}')">ہٹائیں</button>`:''}
+    </div>`).join('');
+}
+
+// ── NEWS CRUD ──
+function openNewsModal(editData=null) {
+  document.getElementById('news-edit-id').value  = editData?.id||'';
+  document.getElementById('news-title').value    = editData?.title||'';
+  document.getElementById('news-image').value    = editData?.imageUrl||'';
+  document.getElementById('news-desc').value     = editData?.description||'';
+  document.getElementById('news-modal-title').textContent = editData?'خبر میں ترمیم':'نئی خبر شامل کریں';
+  document.getElementById('news-btn-text').textContent    = editData?'محفوظ کریں':'شائع کریں';
+  selectedCat = editData?.category||'top';
+  document.querySelectorAll('#category-chips .chip').forEach(c=>c.classList.toggle('selected',c.dataset.cat===selectedCat));
+  const img = document.getElementById('news-img-preview');
+  if (editData?.imageUrl) { img.src=editData.imageUrl; img.style.display='block'; }
+  else img.style.display='none';
+  document.getElementById('news-modal').classList.add('open');
+}
+function editNews(id) { const n=newsList.find(x=>x.id===id); if(n) openNewsModal(n); }
+function submitNews() {
+  const title=document.getElementById('news-title').value.trim();
+  const desc =document.getElementById('news-desc').value.trim();
+  if (!title||!desc) { showToast('عنوان اور تفصیل لازمی ہے'); return; }
+  const editId = document.getElementById('news-edit-id').value;
+  document.getElementById('news-btn-text').innerHTML='<span class="spinner"></span>';
+  const data={title,description:desc,imageUrl:document.getElementById('news-image').value.trim(),category:selectedCat,addedBy:currentUser.email,source:'ایڈمن',isActive:true};
+  const op = editId
+    ? db.collection('custom_news').doc(editId).set(data,{merge:true})
+    : db.collection('custom_news').add({...data,createdAt:Date.now()});
+  op.then(()=>{ closeModal('news-modal'); showToast(editId?'خبر اپڈیٹ ✓':'خبر شائع ✓'); })
+    .catch(e=>showToast('خطا: '+e.message))
+    .finally(()=>{ document.getElementById('news-btn-text').textContent=editId?'محفوظ کریں':'شائع کریں'; });
+}
+function toggleNews(id,val) { db.collection('custom_news').doc(id).set({isActive:val},{merge:true}).then(()=>showToast(val?'فعال ✓':'غیر فعال ✓')).catch(e=>showToast('خطا: '+e.message)); }
+function deleteNews(id) { if(!confirm('حذف کریں؟')) return; db.collection('custom_news').doc(id).delete().then(()=>showToast('حذف ✓')).catch(e=>showToast('خطا: '+e.message)); }
+
+// ── ADS CRUD ──
+function openAdModal(editData=null) {
+  document.getElementById('ad-edit-id').value  = editData?.id||'';
+  document.getElementById('ad-title').value    = editData?.title||'';
+  document.getElementById('ad-image').value    = editData?.imageUrl||'';
+  document.getElementById('ad-desc').value     = editData?.description||'';
+  document.getElementById('ad-link').value     = editData?.link||'';
+  document.getElementById('ad-modal-title').textContent = editData?'اشتہار میں ترمیم':'نیا اشتہار بنائیں';
+  document.getElementById('ad-btn-text').textContent    = editData?'محفوظ کریں':'شائع کریں';
+  const img = document.getElementById('ad-img-preview');
+  if (editData?.imageUrl) { img.src=editData.imageUrl; img.style.display='block'; }
+  else img.style.display='none';
+  document.getElementById('ad-modal').classList.add('open');
+}
+function editAd(id) { const a=adsList.find(x=>x.id===id); if(a) openAdModal(a); }
+function submitAd() {
+  const title=document.getElementById('ad-title').value.trim();
+  const desc =document.getElementById('ad-desc').value.trim();
+  if (!title||!desc) { showToast('عنوان اور تفصیل لازمی ہے'); return; }
+  const editId = document.getElementById('ad-edit-id').value;
+  document.getElementById('ad-btn-text').innerHTML='<span class="spinner"></span>';
+  const data={title,description:desc,imageUrl:document.getElementById('ad-image').value.trim(),link:document.getElementById('ad-link').value.trim(),addedBy:currentUser.email,isActive:true};
+  const op = editId
+    ? db.collection('advertisements').doc(editId).set(data,{merge:true})
+    : db.collection('advertisements').add({...data,createdAt:Date.now()});
+  op.then(()=>{ closeModal('ad-modal'); showToast(editId?'اشتہار اپڈیٹ ✓':'اشتہار شائع ✓'); })
+    .catch(e=>showToast('خطا: '+e.message))
+    .finally(()=>{ document.getElementById('ad-btn-text').textContent=editId?'محفوظ کریں':'شائع کریں'; });
+}
+function toggleAd(id,val) { db.collection('advertisements').doc(id).set({isActive:val},{merge:true}).then(()=>showToast(val?'فعال ✓':'غیر فعال ✓')).catch(e=>showToast('خطا: '+e.message)); }
+function deleteAd(id) { if(!confirm('حذف کریں؟')) return; db.collection('advertisements').doc(id).delete().then(()=>showToast('حذف ✓')).catch(e=>showToast('خطا: '+e.message)); }
+
+// ── ACCESS CRUD ──
+function openAccessModal() {
+  document.getElementById('access-name').value='';
+  document.getElementById('access-email').value='';
+  document.getElementById('access-modal').classList.add('open');
+}
+function submitAccess() {
+  const email=document.getElementById('access-email').value.trim().toLowerCase();
+  const name =document.getElementById('access-name').value.trim();
+  if (!email||!email.includes('@')) { showToast('درست ای میل درج کریں'); return; }
+  document.getElementById('access-btn-text').innerHTML='<span class="spinner"></span>';
+  db.collection('admin_access').add({email,name,addedBy:currentUser.email,createdAt:Date.now()})
+    .then(()=>{ closeModal('access-modal'); showToast('ایڈمن شامل ✓'); })
+    .catch(e=>showToast('خطا: '+e.message))
+    .finally(()=>{ document.getElementById('access-btn-text').textContent='شامل کریں'; });
+}
+function removeAccess(id) {
+  if (!isBuniyadi) { showToast('صرف بنیادی ایڈمن ہٹا سکتے ہیں'); return; }
+  if (!confirm('ہٹائیں؟')) return;
+  db.collection('admin_access').doc(id).delete().then(()=>showToast('ہٹا دیا ✓')).catch(e=>showToast('خطا: '+e.message));
+}
+
+// ── HELPERS ──
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function previewImg(inputId,previewId) {
+  const url=document.getElementById(inputId).value.trim();
+  const img=document.getElementById(previewId);
+  if(url){img.src=url;img.style.display='block';} else img.style.display='none';
+}
+function fmtDate(ts) { if(!ts) return '—'; const d=new Date(ts); return d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear(); }
+function catLabel(cat) { return {top:'تمام',politics:'سیاست',business:'کاروبار',technology:'ٹیکنالوجی',sports:'کھیل',entertainment:'تفریح'}[cat]||cat||'—'; }
+let tt;
+function showToast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2800); }
+
+// Category chips
+document.querySelectorAll('#category-chips .chip').forEach(chip => {
+  chip.onclick = () => {
+    document.querySelectorAll('#category-chips .chip').forEach(c=>c.classList.remove('selected'));
+    chip.classList.add('selected'); selectedCat=chip.dataset.cat;
+  };
+});
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o => { o.onclick=e=>{ if(e.target===o) o.classList.remove('open'); }; });
+</script>
+</body>
+</html>
