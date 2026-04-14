@@ -763,6 +763,10 @@ textarea.form-control { resize: vertical; min-height: 90px; }
           <span class="subnav-icon">🌐</span>
           <span class="subnav-label">NewsData.io</span>
         </div>
+        <div class="subnav-item" id="snav-gnews" onclick="switchNewsTab('gnews')">
+          <span class="subnav-icon">📰</span>
+          <span class="subnav-label">GNews</span>
+        </div>
         <div class="subnav-item disabled" id="snav-rss">
           <span class="subnav-icon">📡</span>
           <span class="subnav-label">RSS Feed</span>
@@ -827,6 +831,40 @@ textarea.form-control { resize: vertical; min-height: 90px; }
           <div class="empty-text">اوپر "خبریں لوڈ کریں" بٹن دبائیں</div>
         </div>
         <div id="nd-results" style="display:flex;flex-direction:column;gap:10px;"></div>
+      </div>
+
+      <!-- TAB: GNews -->
+      <div id="news-tab-gnews" style="display:none;">
+        <!-- Search bar -->
+        <div class="card" style="margin-bottom:0;">
+          <div style="padding:14px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+            <select id="gn-language" class="form-control" style="width:130px;direction:ltr;text-align:left;padding:8px 10px;">
+              <option value="ur">اردو (ur)</option>
+              <option value="hi">Hindi (hi)</option>
+              <option value="en">English (en)</option>
+            </select>
+            <input id="gn-search" class="form-control" placeholder="خبر تلاش کریں..." style="width:200px;" oninput="filterGnResults()">
+            <button class="btn btn-primary" onclick="fetchGNews()">
+              <span id="gn-fetch-text">📥 خبریں لوڈ کریں</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Info bar -->
+        <div style="background:var(--teal-bg);border-radius:var(--r);padding:10px 16px;font-family:var(--urdu);font-size:13px;color:var(--teal);display:flex;align-items:center;gap:8px;">
+          ℹ️ نیچے دی گئی خبریں GNews سے ہیں۔ پسندیدہ خبر کو فعال کر کے ایپ میں شامل کریں۔
+        </div>
+
+        <!-- Results -->
+        <div id="gn-loading" class="empty" style="display:none;">
+          <div style="font-size:32px;">⏳</div>
+          <div class="empty-text">GNews سے خبریں لوڈ ہو رہی ہیں...</div>
+        </div>
+        <div id="gn-empty" class="empty">
+          <div class="empty-icon">📰</div>
+          <div class="empty-text">اوپر "خبریں لوڈ کریں" بٹن دبائیں</div>
+        </div>
+        <div id="gn-results" style="display:none;flex-direction:column;gap:10px;"></div>
       </div>
 
       <!-- TAB: RSS Feed (under maintenance) -->
@@ -1518,12 +1556,13 @@ document.querySelectorAll('.modal-overlay').forEach(o => { o.onclick=e=>{ if(e.t
 // ── NEWS SUB-TAB SWITCHING ──
 let currentNewsTab = 'manual';
 let allNdArticles  = [];  // cached NewsData.io results
+let allGnArticles  = [];  // cached GNews results
 
 function switchNewsTab(tab) {
   currentNewsTab = tab;
 
   // Update sub-nav active state
-  ['manual','newsdata','rss'].forEach(t => {
+  ['manual','newsdata','gnews','rss'].forEach(t => {
     const el = document.getElementById('snav-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -1531,6 +1570,7 @@ function switchNewsTab(tab) {
   // Show/hide tab content
   document.getElementById('news-tab-manual').style.display   = tab === 'manual'   ? '' : 'none';
   document.getElementById('news-tab-newsdata').style.display = tab === 'newsdata'  ? '' : 'none';
+  document.getElementById('news-tab-gnews').style.display    = tab === 'gnews'     ? '' : 'none';
   document.getElementById('news-tab-rss').style.display      = tab === 'rss'       ? '' : 'none';
 
   // Update add button and subtitle
@@ -1541,14 +1581,20 @@ function switchNewsTab(tab) {
     sub.textContent      = 'تمام ایڈمن خبریں';
   } else {
     addBtn.style.display = 'none';
-    sub.textContent      = tab === 'newsdata' ? 'NewsData.io سے خبریں' : 'RSS Feed';
+    const labels = { newsdata: 'NewsData.io سے خبریں', gnews: 'GNews سے خبریں', rss: 'RSS Feed' };
+    sub.textContent = labels[tab] || '';
   }
 
-  // Auto-show initial state for newsdata
+  // Auto-show initial empty state
   if (tab === 'newsdata' && allNdArticles.length === 0) {
     document.getElementById('nd-empty').style.display   = '';
     document.getElementById('nd-loading').style.display = 'none';
     document.getElementById('nd-results').style.display = 'none';
+  }
+  if (tab === 'gnews' && allGnArticles.length === 0) {
+    document.getElementById('gn-empty').style.display   = '';
+    document.getElementById('gn-loading').style.display = 'none';
+    document.getElementById('gn-results').style.display = 'none';
   }
 }
 
@@ -1660,6 +1706,108 @@ function saveNdArticle(a, isActive) {
   }).catch(e => {
     showToast('خطا: ' + e.message);
     console.error('saveNdArticle error:', e);
+  });
+}
+
+
+// ── GNEWS FETCH ──
+const GN_API_KEY = '927b614f91a979330b46210aeac8e3ea';
+
+async function fetchGNews() {
+  const btn  = document.getElementById('gn-fetch-text');
+  const lang = document.getElementById('gn-language').value;
+  const searchVal = document.getElementById('gn-search').value.trim();
+  const q = searchVal || 'اردو';
+
+  btn.innerHTML = '<span class="spinner" style="border-top-color:white;"></span> لوڈ ہو رہا ہے...';
+  document.getElementById('gn-loading').style.display  = '';
+  document.getElementById('gn-empty').style.display    = 'none';
+  document.getElementById('gn-results').style.display  = 'none';
+
+  try {
+    const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(q)}&lang=${lang}&max=10&apikey=${GN_API_KEY}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status + ': ' + resp.statusText);
+    const data = await resp.json();
+
+    if (!data.articles || data.articles.length === 0) {
+      document.getElementById('gn-loading').style.display = 'none';
+      document.getElementById('gn-empty').style.display   = '';
+      document.getElementById('gn-empty').querySelector('.empty-text').textContent = 'کوئی خبر نہیں ملی';
+      btn.textContent = '📥 خبریں لوڈ کریں';
+      return;
+    }
+
+    allGnArticles = data.articles;
+    renderGnResults(allGnArticles);
+    btn.textContent = '🔄 دوبارہ لوڈ کریں';
+
+  } catch (e) {
+    document.getElementById('gn-loading').style.display = 'none';
+    document.getElementById('gn-empty').style.display   = '';
+    document.getElementById('gn-empty').querySelector('.empty-text').textContent = 'خطا: ' + e.message;
+    btn.textContent = '📥 خبریں لوڈ کریں';
+    console.error('GNews fetch error:', e);
+  }
+}
+
+function filterGnResults() {
+  if (!allGnArticles.length) return;
+  const q = document.getElementById('gn-search').value.trim().toLowerCase();
+  const filtered = q ? allGnArticles.filter(a =>
+    (a.title||'').toLowerCase().includes(q) ||
+    (a.description||'').toLowerCase().includes(q)
+  ) : allGnArticles;
+  renderGnResults(filtered);
+}
+
+function renderGnResults(articles) {
+  document.getElementById('gn-loading').style.display = 'none';
+  document.getElementById('gn-empty').style.display   = 'none';
+  const container = document.getElementById('gn-results');
+  container.style.display = 'flex';
+
+  container.innerHTML = articles.map(function(a, idx) {
+    const img    = a.image  ? '<img class="nd-card-img" src="' + a.image + '" alt="" onerror="this.style.display=\'none\'">' : '';
+    const src    = (a.source && a.source.name) ? a.source.name : 'GNews';
+    const date   = a.publishedAt ? a.publishedAt.split('T')[0] : '';
+    const desc   = a.description || 'تفصیل دستیاب نہیں';
+    const title  = a.title || '';
+    return '<div class="nd-card">'
+      + img
+      + '<div class="nd-card-body">'
+      + '<div class="nd-card-title">' + title + '</div>'
+      + '<div class="nd-card-meta">'
+      + '<span style="background:var(--teal-bg);color:var(--teal);padding:1px 8px;border-radius:10px;font-size:10px;">GNews</span>'
+      + '<span>' + src + '</span>'
+      + '<span>' + date + '</span>'
+      + '</div>'
+      + '<div class="nd-card-desc">' + desc + '</div>'
+      + '<div class="nd-card-actions">'
+      + '<button class="btn btn-primary btn-sm" onclick="importGnArticle(' + idx + ', true)">✅ فعال کر کے شامل کریں</button>'
+      + '<button class="btn btn-secondary btn-sm" onclick="importGnArticle(' + idx + ', false)">➕ غیر فعال شامل کریں</button>'
+      + '</div></div></div>';
+  }).join('');
+}
+
+function importGnArticle(idx, isActive) {
+  const a = allGnArticles[idx];
+  if (!a) return;
+  const src = (a.source && a.source.name) ? a.source.name : 'GNews';
+  db.collection('custom_news').add({
+    title:       (a.title       || '').trim(),
+    description: (a.description || a.title || '').trim(),
+    imageUrl:    a.image        || '',
+    category:    'top',
+    addedBy:     currentUser.email,
+    source:      src,
+    isActive:    isActive,
+    createdAt:   Date.now()
+  }).then(function() {
+    showToast(isActive ? '✅ GNews خبر فعال ہو کر شامل ہو گئی' : '➕ GNews خبر غیر فعال شامل ہو گئی');
+  }).catch(function(e) {
+    showToast('خطا: ' + e.message);
+    console.error('importGnArticle error:', e);
   });
 }
 
